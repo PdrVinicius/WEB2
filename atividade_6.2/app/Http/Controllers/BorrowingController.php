@@ -31,4 +31,10 @@ class BorrowingController extends Controller
 
         return redirect()->route('books.show', $borrowing->book_id)->with('success', 'Devolução registrada com sucesso.');
     }
+    public function userBorrowings(User $user)
+    {
+        $borrowings = $user->books()->withPivot('borrowed_at', 'returned_at')->get();
+
+        return view('users.borrowings', compact('user', 'borrowings'));
+    }
 }
