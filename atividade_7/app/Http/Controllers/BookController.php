@@ -8,6 +8,8 @@ use App\Models\Author;
 use App\Models\Category;
 use Illuminate\Http\Request;
 use App\Models\User;
+use Illuminate\Support\Facades\Storage;
+
 class BookController extends Controller
 {
     // Formulário com input de ID
@@ -24,9 +26,16 @@ class BookController extends Controller
             'publisher_id' => 'required|exists:publishers,id',
             'author_id' => 'required|exists:authors,id',
             'category_id' => 'required|exists:categories,id',
+            'cover_image' => 'nullable|image|max:2048',
         ]);
 
-        Book::create($request->all());
+        $data = $request->all();
+
+        if ($request->hasFile('cover_image')) {
+            $data['cover_image'] = $request->file('cover_image')->store('covers', 'public');
+        }
+
+        Book::create($data);
 
         return redirect()->route('books.index')->with('success', 'Livro criado com sucesso.');
     }
@@ -49,12 +58,20 @@ class BookController extends Controller
             'publisher_id' => 'required|exists:publishers,id',
             'author_id' => 'required|exists:authors,id',
             'category_id' => 'required|exists:categories,id',
+            'cover_image' => 'nullable|image|max:2048',
         ]);
 
-        Book::create($request->all());
+        $data = $request->all();
+
+        if ($request->hasFile('cover_image')) {
+            $data['cover_image'] = $request->file('cover_image')->store('covers', 'public');
+        }
+
+        Book::create($data);
 
         return redirect()->route('books.index')->with('success', 'Livro criado com sucesso.');
     }
+
     public function edit(Book $book)
     {
         $publishers = Publisher::all();
@@ -63,6 +80,7 @@ class BookController extends Controller
 
         return view('books.edit', compact('book', 'publishers', 'authors', 'categories'));
     }
+
     public function update(Request $request, Book $book)
     {
         $request->validate([
@@ -70,22 +88,47 @@ class BookController extends Controller
             'publisher_id' => 'required|exists:publishers,id',
             'author_id' => 'required|exists:authors,id',
             'category_id' => 'required|exists:categories,id',
+            'cover_image' => 'nullable|image|max:2048',
         ]);
 
-        $book->update($request->all());
+        $data = $request->all();
+
+        if ($request->hasFile('cover_image')) {
+            // Apaga imagem antiga se existir
+            if ($book->cover_image) {
+                Storage::disk('public')->delete($book->cover_image);
+            }
+            // Salva nova imagem
+            $data['cover_image'] = $request->file('cover_image')->store('covers', 'public');
+        }
+
+        $book->update($data);
 
         return redirect()->route('books.index')->with('success', 'Livro atualizado com sucesso.');
     }
+
+    public function destroy(Book $book)
+    {
+        // Apaga imagem do storage se existir
+        if ($book->cover_image) {
+            Storage::disk('public')->delete($book->cover_image);
+        }
+
+        $book->delete();
+
+        return redirect()->route('books.index')->with('success', 'Livro deletado com sucesso.');
+    }
+
     public function show(Book $book)
-{
-    // Carregando autor, editora e categoria do livro com eager loading
-    $book->load(['author', 'publisher', 'category']);
+    {
+        // Carregando autor, editora e categoria do livro com eager loading
+        $book->load(['author', 'publisher', 'category']);
 
-    // Carregar todos os usuários para o formulário de empréstimo
-    $users = User::all();
+        // Carregar todos os usuários para o formulário de empréstimo (se aplicável)
+        $users = User::all();
 
-    return view('books.show', compact('book','users'));
-}
+        return view('books.show', compact('book', 'users'));
+    }
 
     public function index()
     {
@@ -94,5 +137,4 @@ class BookController extends Controller
 
         return view('books.index', compact('books'));
     }
-    
 }
